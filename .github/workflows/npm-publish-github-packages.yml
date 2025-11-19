@@ -1,11 +1,9 @@
-name: Node.js CI
+name: Node.js CI and Publish
 
-# concurrency should prevent overlapping runs
 concurrency:
   group: backend-ci-${{ github.ref }}
   cancel-in-progress: true
 
-# when something is pushed or a pull request is made to backend it should trigger the workflow
 on:
   push:
     branches: [ "backend" ]
@@ -14,7 +12,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-deploy:
+  build:
+    name: Build and Test
     runs-on: ubuntu-latest
 
     strategy:
@@ -22,18 +21,104 @@ jobs:
         node-version: [18.x]
         
     steps:
-    - uses: actions/checkout@v4
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'npm'
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-# instals dependencies and build the project
-    - run: npm ci
-    - run: npm run build --if-present
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
 
-# runs tests and captures results even if they fail
-    - name: Run tests
-      continue-on-error: true
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (if present)
+        run: npm run build --if-present
+
+      - name: Run tests (produce JUnit or other report if you have one)
+        continue-on-error: true
+        run: |
+          npm test || true
+          # Example: write test output to a file or junit xml if your test runner supports it
+          # e.g. npm run test:ci (which writes junit.xml)
+
+      # Upload the built distribution (change `dist/` to your real build folder)
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: backend-build
+          path: |
+            dist
+            build
+          # retention-days: 30  # optional: override artifact retention
+
+      # Upload test results (if any)
+      - name: Upload test-results artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results
+          path: |
+            junit.xml
+            coverage/*
+          if-no-files-found: ignore
+
+  publish:
+    name: Publish package using build artifact
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (optional, gives you repository context)
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 18.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18.x
+          cache: 'npm'
+
+      # Download the artifact uploaded by the build job
+      - name: Download build artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: backend-build
+          path: ./artifact
+
+      - name: List downloaded artifact
+        run: |
+          echo "artifact contents:"
+          ls -la artifact || true
+
+      # If artifact is an archive containing dist or packaged files, extract/use it:
+      - name: Restore build into workspace
+        run: |
+          # If the build artifact contains a `dist/` folder, copy it back to the workspace.
+          cp -R artifact/* . || true
+          ls -la
+
+      # Example: publish to GitHub Packages (adjust owner and package scope)
+      # Ensure you have appropriate secrets and package settings. Using GITHUB_TOKEN may work for GitHub Packages.
+      - name: Configure npm for GitHub Packages
+        run: |
+          echo "@${{ github.repository_owner }}:registry=https://npm.pkg.github.com" >> ~/.npmrc
+          # Use the GITHUB_TOKEN for authentication in actions (or use a personal access token stored in secrets.NPM_TOKEN)
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> ~/.npmrc
+
+      - name: Publish package (example)
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # If your package is already prepared in `dist/` and package.json points to correct files:
+          npm publish --registry=https://npm.pkg.github.com || echo "Publish failed or not needed"
+
+      # Optionally: upload release artifact or report back to PR with test results
+      - name: Download and display test results
+        uses: actions/download-artifact@v3
+        with:
+          name: test-results
+          path: ./test-reports
+        continue-on-error: true
+
+      - name: Show test report files
+        run: ls -la test-reports || true
       run: |

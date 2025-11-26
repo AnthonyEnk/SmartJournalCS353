@@ -56,12 +56,11 @@ jobs:
           junit.xml
           coverage/
         if-no-files-found: ignore
-
-publish:
-  name: Publish using Artifact
-  needs: build
-  runs-on: ubuntu-latest
-  steps:
+  publish:
+   name: Publish using Artifact
+   needs: build
+   runs-on: ubuntu-latest
+   steps:
     - name: Checkout (optional)
       uses: actions/checkout@v4
 

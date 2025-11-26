@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -87,15 +87,3 @@ publish:
         # copy extracted artifact contents into repo workspace if needed
         cp -R artifact/* . || true
         ls -la
-
-    - name: Configure npm for GitHub Packages (example)
-      run: |
-        echo "@${{ github.repository_owner }}:registry=https://npm.pkg.github.com" >> ~/.npmrc
-        echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> ~/.npmrc
-
-    - name: Publish package (example)
-      env:
-        NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        # publish from restored dist/package files if applicable
-        npm publish --registry=https://npm.pkg.github.com || echo "publish skipped/fails"

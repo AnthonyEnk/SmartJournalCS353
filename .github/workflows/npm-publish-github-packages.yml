@@ -16,7 +16,6 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-
     strategy:
       matrix:
         node-version: [18.x]
@@ -37,3 +36,66 @@ jobs:
     - name: Run tests
       continue-on-error: true
       run: |
+
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: backend-build-${{ matrix.node-version }}
+        path: |
+          dist
+          build
+          package.tgz
+        if-no-files-found: error
+          # retention-days: 7
+
+    - name: Upload test results artifact (if present)
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results-${{ matrix.node-version }}
+        path: |
+          junit.xml
+          coverage/
+        if-no-files-found: ignore
+
+publish:
+  name: Publish using Artifact
+  needs: build
+  runs-on: ubuntu-latest
+  steps:
+    - name: Checkout (optional)
+      uses: actions/checkout@v4
+
+    - name: Use Node.js 18.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: 18.x
+        cache: 'npm'
+
+    - name: Download build artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: backend-build-18.x
+        path: ./artifact
+
+    - name: Inspect artifact
+      run: |
+        echo "Artifact files:"
+        ls -la artifact || true
+
+    - name: Restore artifact into workspace
+      run: |
+        # copy extracted artifact contents into repo workspace if needed
+        cp -R artifact/* . || true
+        ls -la
+
+    - name: Configure npm for GitHub Packages (example)
+      run: |
+        echo "@${{ github.repository_owner }}:registry=https://npm.pkg.github.com" >> ~/.npmrc
+        echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> ~/.npmrc
+
+    - name: Publish package (example)
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        # publish from restored dist/package files if applicable
+        npm publish --registry=https://npm.pkg.github.com || echo "publish skipped/fails"

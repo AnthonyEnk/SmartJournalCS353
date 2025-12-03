@@ -21,68 +21,104 @@ jobs:
         node-version: [18.x]
         
     steps:
-    - uses: actions/checkout@v4
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'npm'
+      - uses: actions/checkout@v4
 
-# instals dependencies and build the project
-    - run: npm ci
-    - run: npm run build --if-present
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
 
-# runs tests and captures results even if they fail
-    - name: Run tests
-      continue-on-error: true
-      run: |
+      # install dependencies and build the project
+      - name: Install dependencies
+        run: npm ci
 
-    - name: Upload build artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: backend-build-${{ matrix.node-version }}
-        path: |
-          dist
-          build
-          package.tgz
-        if-no-files-found: error
+      - name: Build (if present)
+        run: |
+          echo "Running npm run build --if-present"
+          npm run build --if-present
+          echo "Build exit code: $?"
+          echo "Listing top-level files:"
+          ls -la || true
+          echo "Listing build and dist folders if present:"
+          ls -la dist || true
+          ls -la build || true
+
+      # run tests and capture results even if they fail
+      - name: Run tests
+        continue-on-error: true
+        run: |
+          if [ -f package.json ]; then
+            if npm run | grep -q "test"; then
+              echo "Running npm test"
+              npm test || true
+            else
+              echo "No npm test script defined"
+            fi
+          fi
+          echo "Test run finished."
+
+      # Optionally create a package tarball so we have a predictable .tgz name
+      - name: Create package tarball (optional)
+        if: always()
+        run: |
+          if [ -f package.json ]; then
+            echo "Running npm pack to create .tgz"
+            npm pack || true
+            echo "Listing any .tgz files:"
+            ls -la *.tgz || true
+          else
+            echo "No package.json found; skipping npm pack"
+          fi
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-build-${{ matrix.node-version }}
+          # use a YAML list so each path/glob is treated separately
+          path:
+            - dist
+            - build
+            - '*.tgz'
+          if-no-files-found: error
           # retention-days: 7
 
-    - name: Upload test results artifact (if present)
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-results-${{ matrix.node-version }}
-        path: |
-          junit.xml
-          coverage/
-        if-no-files-found: ignore
+      - name: Upload test results artifact (if present)
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.node-version }}
+          path:
+            - junit.xml
+            - coverage/
+          if-no-files-found: ignore
+
   publish:
-   name: Publish using Artifact
-   needs: build
-   runs-on: ubuntu-latest
-   steps:
-    - name: Checkout (optional)
-      uses: actions/checkout@v4
+    name: Publish using Artifact
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (optional)
+        uses: actions/checkout@v4
 
-    - name: Use Node.js 18.x
-      uses: actions/setup-node@v4
-      with:
-        node-version: 18.x
-        cache: 'npm'
+      - name: Use Node.js 18.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18.x
+          cache: 'npm'
 
-    - name: Download build artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: backend-build-18.x
-        path: ./artifact
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-build-18.x
+          path: ./artifact
 
-    - name: Inspect artifact
-      run: |
-        echo "Artifact files:"
-        ls -la artifact || true
+      - name: Inspect artifact
+        run: |
+          echo "Artifact files:"
+          ls -la artifact || true
 
-    - name: Restore artifact into workspace
-      run: |
-        # copy extracted artifact contents into repo workspace if needed
-        cp -R artifact/* . || true
-        ls -la
+      - name: Restore artifact into workspace
+        run: |
+          # copy extracted artifact contents into repo workspace if needed
+          cp -R artifact/* . || true
+          ls -la

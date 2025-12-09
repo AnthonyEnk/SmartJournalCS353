@@ -1,4 +1,34 @@
-import 'dotenv/config';
+import { config } from 'dotenv';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+// ES module equivalents of __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Load .env from root directory
+const envPath = resolve(__dirname, '../../.env');
+const result = config({ path: envPath });
+
+// Verify critical environment variables are loaded
+console.log('Environment check:', {
+  envPath,
+  DB_HOST: process.env.DB_HOST,
+  DB_PORT: process.env.DB_PORT,
+  DB_NAME: process.env.DB_NAME,
+  DB_USER: process.env.DB_USER,
+  hasPassword: !!process.env.DB_PASSWORD,
+});
+
+if (!process.env.DB_HOST || !process.env.DB_NAME) {
+  console.error('CRITICAL: Database environment variables not loaded!');
+  console.error('Attempted to load from:', envPath);
+  console.error('DB_HOST:', process.env.DB_HOST);
+  console.error('DB_NAME:', process.env.DB_NAME);
+  if (result.error) {
+    console.error('Dotenv error:', result.error);
+  }
+}
 import express from 'express';
 import cors from 'cors';
 import { testConnection, closePool } from './db/connection.js';
@@ -15,7 +45,15 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:5173', // Your frontend URL
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Content-Type', 'Authorization'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
+}));
 app.use(express.json());
 app.use(requestLogger);
 

@@ -9,6 +9,7 @@
     "test": "jest --coverage --coverageDirectory=../coverage/backend --runInBand"
   },
   "dependencies": {
+    "@clerk/backend": "^2.20.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^4.18.2",

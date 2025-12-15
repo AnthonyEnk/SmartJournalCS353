@@ -6,11 +6,11 @@ concurrency:
 
 on:
   push:
-    branches: [ "backend" ]
+    branches: [ "main" ]
     tags:
       - 'v*'    # optional: publish also on semver tags like v1.2.3
   pull_request:
-    branches: [ "backend" ]
+    branches: [ "main" ]
   workflow_dispatch:
 
 permissions:
@@ -59,8 +59,7 @@ jobs:
   publish:
     needs: build-and-test
     runs-on: ubuntu-latest
-    # publish only on the backend branch or when creating a tag matching 'v*'
-    if: github.ref == 'refs/heads/backend' || startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/v')
     steps:
       - uses: actions/checkout@v4
 
@@ -69,16 +68,11 @@ jobs:
         with:
           node-version: 18.x
           registry-url: 'https://npm.pkg.github.com'
-          always-auth: true
-          node-auth-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install production deps
         run: npm ci --production
 
       - name: Publish package to GitHub Packages
+        run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # If your package is scoped to your user/org, make sure package.json name is e.g. "@OWNER/packagename"
-          # and optionally set "publishConfig": { "registry": "https://npm.pkg.github.com/" } in package.json.
-          npm publish --if-present --registry https://npm.pkg.github.com/

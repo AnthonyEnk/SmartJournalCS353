@@ -1,13 +1,9 @@
 {
-  "name": "@AnthonyEnk/smartjournalcs353",
+  "name": "smartjournalcs353",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "tsc",
-    "lint": "eslint . --ext .ts",
-    "test": "jest",
-    "prepublishOnly": "npm run build"
     "dev": "concurrently \"npm:dev:*\"",
     "dev:frontend": "npm run dev --workspace frontend",
     "dev:backend": "npm run start --workspace backend"

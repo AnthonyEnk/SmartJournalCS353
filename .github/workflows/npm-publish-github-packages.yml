@@ -2,15 +2,15 @@ name: Node.js CI
 
 # concurrency should prevent overlapping runs
 concurrency:
-  group: backend-ci-${{ github.ref }}
+  group: main-ci-${{ github.ref }}
   cancel-in-progress: true
 
 # when something is pushed or a pull request is made to backend it should trigger the workflow
 on:
   push:
-    branches: [ "backend" ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ "backend" ]
+    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
@@ -36,4 +36,4 @@ jobs:
 # runs tests and captures results even if they fail
     - name: Run tests
       continue-on-error: true
-      run: |
+      run: npm test --if-present

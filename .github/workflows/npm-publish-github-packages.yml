@@ -1,14 +1,14 @@
 name: Node.js CI
 
 concurrency:
-  group: backend-ci-${{ github.ref }}
+  group: main-ci-${{ github.ref }}
   cancel-in-progress: true
 
 on:
   push:
-    branches: ["backend"]
+    branches: ["main"]
   pull_request:
-    branches: ["backend"]
+    branches: ["main"]
   workflow_dispatch:
 
 jobs:

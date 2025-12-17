@@ -12,6 +12,9 @@ backend/dist/
 # Ignore environment files
 .env
 .env.*
+backend/.env
+frontend/.env
+!**/.env.example
 
 # Ignore logs
 *.log
@@ -23,3 +26,7 @@ backend/dist/
 .vscode/
 .idea/
 
+
+
+#Ignore vscode AI rules
+.github\instructions\codacy.instructions.md
